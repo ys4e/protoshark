@@ -10,9 +10,9 @@ type DecodeError = Box<dyn Error>;
 pub type SerializedMessage = BTreeMap<i32, Value>;
 
 /// Decodes a protobuf-encoded message.
-/// 
+///
 /// `bytes`: A slice of bytes representing the protobuf-encoded message.
-/// 
+///
 /// Returns a HashMap of field numbers to values.
 pub fn decode(bytes: &[u8]) -> Result<SerializedMessage, DecodeError> {
     let bytes_len = bytes.len();
@@ -22,7 +22,9 @@ pub fn decode(bytes: &[u8]) -> Result<SerializedMessage, DecodeError> {
 
     while index < bytes.len() {
         let varint = VarInt::raw_at(bytes, index);
-        let header = Header::decode(&varint);
+        let Ok(header) = Header::decode(&varint) else {
+            return Err("Invalid wire type specified".into());
+        };
 
         index += varint.len();
 
@@ -100,14 +102,14 @@ struct Header {
 impl Header {
     /// Decodes a protobuf header.
     /// bytes: A slice of bytes representing the header.
-    pub fn decode(bytes: &[u8]) -> Self {
+    pub fn decode(bytes: &[u8]) -> Result<Self, ()> {
         let varint = VarInt::decode(bytes);
         let int = varint.as_i32();
 
-        Self {
+        Ok(Self {
             field_number: int >> 3,
-            wire_type: WireType::from(0b0000_0111 & int as u8)
-        }
+            wire_type: WireType::try_from(0b0000_0111 & int as u8)?
+        })
     }
 }
 
@@ -120,16 +122,18 @@ enum WireType {
     Fixed32
 }
 
-impl From<u8> for WireType {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for WireType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => WireType::VarInt,
-            1 => WireType::Fixed64,
-            2 => WireType::LengthDelimited,
-            3 => WireType::StartGroup,
-            4 => WireType::EndGroup,
-            5 => WireType::Fixed32,
-            _ => panic!("Invalid wire type: {}", value)
+            0 => Ok(WireType::VarInt),
+            1 => Ok(WireType::Fixed64),
+            2 => Ok(WireType::LengthDelimited),
+            3 => Ok(WireType::StartGroup),
+            4 => Ok(WireType::EndGroup),
+            5 => Ok(WireType::Fixed32),
+            _ => Err(())
         }
     }
 }
