@@ -138,6 +138,67 @@ impl TryFrom<u8> for WireType {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Number {
+    Integer(i32),
+    Long(i64),
+    UnsignedInteger(u32),
+    UnsignedLong(u64)
+}
+
+impl Number {
+    /// Determines which value the variable integer is closest to.
+    pub fn closest(var_int: VarInt) -> Self {
+        let mut i64: Option<i64> = None;
+        let mut u32: Option<u32> = None;
+        let mut u64: Option<u64> = None;
+
+        // Always serialize i32
+        let i32 = var_int.as_i32();
+
+        // Serialize i64 if there are enough bytes (at least 8 bytes)
+        if var_int.length() >= 8 {
+            i64 = Some(var_int.as_i64());
+
+            // Check if the i64 is the same as the i32
+            if i64.unwrap() == i32 as i64 {
+                i64 = None;
+            }
+        }
+
+        // Serialize u32 if the value is non-negative
+        if let Some(u32_val) = var_int.as_u32() {
+            // If the u32 is the same as the i32, don't serialize it
+            if i32 < 0 || i32 as u32 != u32_val {
+                u32 = Some(u32_val);
+
+                // Serialize u64 if there are enough bytes (at least 8 bytes) and the value is non-negative
+                if var_int.length() >= 8 {
+                    if let Some(u64_val) = var_int.as_u64() {
+                        if u64_val != u32_val as u64 {
+                            u64 = Some(u64_val);
+                        }
+                    }
+                }
+            }
+        }
+
+        if i64.is_none() && u32.is_none() && u64.is_none() {
+            Number::Integer(i32)
+        } else {
+            if let Some(i64) = i64 {
+                Number::Long(i64)
+            } else if let Some(u32) = u32 {
+                Number::UnsignedInteger(u32)
+            } else if let Some(u64) = u64 {
+                Number::UnsignedLong(u64)
+            } else {
+                Number::Integer(i32)
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct VarInt(Vec<u8>);
 
@@ -199,6 +260,11 @@ impl VarInt {
         result
     }
 
+    /// Returns the length of the buffer for the varint.
+    pub fn length(&self) -> usize {
+        self.0.len() 
+    }
+    
     /// Creates a 32-bit integer representation of the varint.
     pub fn as_i32(&self) -> i32 {
         let mut value = 0;
