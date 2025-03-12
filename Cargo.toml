@@ -1,8 +1,8 @@
 [package]
 name = "protoshark"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["KingRainbow44"]
-description = "Arbitrary decoder for protobuf3"
+description = "Utilities for Google's Protocol Buffers schema"
 edition = "2021"
 
 [dependencies]

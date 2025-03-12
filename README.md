@@ -1,6 +1,9 @@
 # protoshark
 
-Arbitrary binary decoder for Google's Protocol Buffer schema.
+`protoshark` is:
+
+- an Arbitrary binary decoder for Google's Protocol Buffer schema.
+- a Rust library for encoding Protocol Buffer messages.
 
 ## See Other
 
