@@ -14,7 +14,48 @@ pub use crate::bytes::*;
 pub use crate::varint::*;
 
 type DecodeError = Box<dyn Error>;
-pub type SerializedMessage = BTreeMap<u32, Value>;
+// pub type SerializedMessage = BTreeMap<u32, Value>;
+
+/// A serialized message.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SerializedMessage {
+    backing: BTreeMap<u32, Value>
+}
+
+impl SerializedMessage {
+    /// Creates a new serialized message instance.
+    pub fn new() -> Self {
+        Self { backing: BTreeMap::new() }
+    }
+
+    /// Inserts a value into the map.
+    ///
+    /// If a duplicate value exists, the value is replaced with an array.
+    pub fn insert(&mut self, field: u32, value: Value) {
+        // Check if the value exists.
+        if self.backing.contains_key(&field) {
+            // Get the existing value.
+            let mut existing = self.backing.remove(&field).unwrap();
+
+            // If the value is a vector, push the new value into it.
+            if let Value::Repeated(ref mut vec) = existing {
+                vec.push(value);
+            } else {
+                // Otherwise, create a new vector and push the existing value into it.
+                let mut vec = vec![existing.clone()];
+                vec.push(value);
+
+                // Set the existing value to a vector.
+                existing = Value::Repeated(vec);
+            }
+
+            // Insert the new value.
+            self.backing.insert(field, existing);
+        } else {
+            self.backing.insert(field, value);
+        }
+    }
+}
 
 /// Decodes a protobuf-encoded message.
 ///
@@ -24,7 +65,7 @@ pub type SerializedMessage = BTreeMap<u32, Value>;
 pub fn decode(bytes: &[u8]) -> Result<SerializedMessage, DecodeError> {
     let bytes_len = bytes.len();
 
-    let mut message: SerializedMessage = BTreeMap::new();
+    let mut message = SerializedMessage::new();
     let mut index = 0usize;
 
     while index < bytes.len() {
@@ -282,7 +323,8 @@ pub enum Value {
     String(String),
     #[serde(with = "base64")]
     Bytes(Vec<u8>),
-    Message(SerializedMessage)
+    Message(SerializedMessage),
+    Repeated(Vec<Value>)
 }
 
 value_conversion!(
@@ -291,7 +333,8 @@ value_conversion!(
     f64 => Double; double,
     String => String; string,
     Vec<u8> => Bytes; bytes,
-    SerializedMessage => Message; message
+    SerializedMessage => Message; message,
+    Vec<Value> => Repeated; repeated
 );
 
 // Special conversions.
