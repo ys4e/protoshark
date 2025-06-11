@@ -55,6 +55,24 @@ impl SerializedMessage {
             self.backing.insert(field, value);
         }
     }
+
+    /// Gets the value at the given field.
+    pub fn get(&self, field: u32) -> Option<Value> {
+        self.backing.get(&field).cloned()
+    }
+}
+
+impl Iterator for SerializedMessage {
+    type Item = (u32, Value);
+
+    fn next<'a>(&mut self) -> Option<Self::Item> {
+        match self.backing.iter().next() {
+            Some((field, value)) => {
+                Some((*field, value.clone()))
+            }
+            None => None
+        }
+    }
 }
 
 /// Decodes a protobuf-encoded message.
