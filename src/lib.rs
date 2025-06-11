@@ -3,7 +3,7 @@ pub mod bytes;
 pub mod varint;
 
 use std::{collections::BTreeMap, error::Error};
-
+use std::collections::btree_map;
 use paste::paste;
 use serde::{Deserialize, Serialize};
 
@@ -60,18 +60,47 @@ impl SerializedMessage {
     pub fn get(&self, field: u32) -> Option<Value> {
         self.backing.get(&field).cloned()
     }
+
+    /// Returns the backing iterator.
+    pub fn iter(&self) -> btree_map::Iter<u32, Value> {
+        self.backing.iter()
+    }
+
+    /// Returns a mutable backing iterator.
+    pub fn iter_mut(&mut self) -> btree_map::IterMut<u32, Value> {
+        self.backing.iter_mut()
+    }
+
+    /// Returns the backing map as an iterator.
+    pub fn into_iter(self) -> btree_map::IntoIter<u32, Value> {
+        self.backing.into_iter()
+    }
 }
 
-impl Iterator for SerializedMessage {
-    type Item = (u32, Value);
+impl<'a> IntoIterator for &'a SerializedMessage {
+    type Item = (&'a u32, &'a Value);
+    type IntoIter = btree_map::Iter<'a, u32, Value>;
 
-    fn next<'a>(&mut self) -> Option<Self::Item> {
-        match self.backing.iter().next() {
-            Some((field, value)) => {
-                Some((*field, value.clone()))
-            }
-            None => None
-        }
+    fn into_iter(self) -> Self::IntoIter {
+        self.backing.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut SerializedMessage {
+    type Item = (&'a u32, &'a mut Value);
+    type IntoIter = btree_map::IterMut<'a, u32, Value>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.backing.iter_mut()
+    }
+}
+
+impl IntoIterator for SerializedMessage {
+    type Item = (u32, Value);
+    type IntoIter = btree_map::IntoIter<u32, Value>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.backing.into_iter()
     }
 }
 
